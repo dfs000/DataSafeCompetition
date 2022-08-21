@@ -19,7 +19,12 @@ def search_sensitive_file(base_path, sensitive_word):
         csv_write.writerow(csv_head)
 
     # 获取要分析的文件列表
-    file_list = os.listdir(base_path)
+    # 需要递归找到所有文件，应该用os.walk()
+    # file_list = os.listdir(base_path)
+    file_list = []
+    for root,_,files in os.walk('.', topdown=False):
+        for name in files:
+            file_list.append(os.path.join(root, name))
 
     # result存放的是命中的敏感词
     result = []
@@ -34,9 +39,12 @@ def search_sensitive_file(base_path, sensitive_word):
     # 图像文件后缀名
     img_type_list = ['.jpg', '.png']
     # 压缩文件后缀名
-    compressed_type_list = ['.zip', '.rar', '.7z']
-    # 文本文件后缀名
-    text_type_list = ['.txt', '.docx', '.pdf']
+    # office类型的文件均可以通过zip解压的方式来分离图片和文本
+    compressed_type_list = ['.zip', '.rar', '.7z', '.docx', '.doc', '.ppt', '.pptx', '.xlsx']
+    # 能直接读取搜索的文本文件后缀名
+    text_type_list = ['.txt']
+    # 需要特殊处理的文件后缀名
+    sp_type_list = ['.pdf', '.xml']
     # 未知类型，进行统计
     unknown_type_list = []
 
@@ -57,6 +65,7 @@ def search_sensitive_file(base_path, sensitive_word):
                 sensitive_file_path_list.append(file_path)
 
         elif file_type in compressed_type_list:
+            # 文件解压出来后，分类放置在文件夹中，然后调用对应的处理办法
             sensitive_word_string = search_compressed_file(file_path, sensitive_word)
             if len(sensitive_word_string) > 0:
                 result.append(sensitive_word_string)
@@ -92,6 +101,26 @@ def search_text_file(file_path, sensitive_word):
 def search_compressed_file(file_path, sensitive_word):
     pass
 
+def search_pdf_file(file_path, sensitive_word):
+    # import packages
+    import PyPDF2
+    import re
+
+    object = PyPDF2.PdfFileReader(file_path)
+    # get number of pages
+    NumPages = object.getNumPages()
+
+    # extract text and do the search
+    for i in range(0, NumPages):
+        PageObj = object.getPage(i)
+        print("this is page " + str(i)) 
+        # 需要除去空格来匹配
+        Text = PageObj.extractText().replace(" ", "")
+        # print(Text)
+        for String in sensitive_word:
+            ResSearch = re.search(String, Text)
+            if ResSearch is not None:
+                return String
 
 if __name__ == '__main__':
     base_path = os.getcwd()
